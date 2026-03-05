@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, ImageProvider } from './context/AppContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
@@ -7,7 +7,6 @@ import { Footer } from './components/layout/Footer';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
-import { ExplorePage } from './pages/ExplorePage';
 import { PhotoDetailPage } from './pages/PhotoDetailPage';
 import { UploadPage } from './pages/UploadPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -31,7 +30,7 @@ function App() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
-                <Route path="/explore" element={<ExplorePage />} />
+                <Route path="/explore" element={<Navigate to="/" replace />} />
                 <Route path="/photo/:id" element={<PhotoDetailPage />} />
                 <Route path="/upload" element={<UploadPage />} />
                 <Route path="/profile/:username" element={<ProfilePage />} />

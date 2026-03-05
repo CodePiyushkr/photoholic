@@ -32,7 +32,6 @@ export function Header() {
   };
 
   const navLinks = [
-    { href: '/explore', label: 'Explore' },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   ];
 
