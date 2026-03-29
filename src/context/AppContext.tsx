@@ -56,6 +56,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return storage.get<string[]>('rategallery_banned', []);
   });
 
+  // Ensure all users have relationship entries (fixes reload issue)
+  useEffect(() => {
+    setRelationships(prev => {
+      let updated = { ...prev };
+      let hasChanges = false;
+      
+      mockUsers.forEach(user => {
+        if (!updated[user.id]) {
+          updated[user.id] = {
+            followers: [...user.followers],
+            following: [...user.following],
+          };
+          hasChanges = true;
+        }
+      });
+      
+      return hasChanges ? updated : prev;
+    });
+  }, []);
+
   useEffect(() => {
     // Check for existing session
     const savedUser = storage.get<User | null>('rategallery_user', null);
@@ -235,11 +255,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Get all users with real-time relationship data
-  const allUsers = mockUsers.map(u => ({
-    ...u,
-    followers: relationships[u.id]?.followers || u.followers,
-    following: relationships[u.id]?.following || u.following,
-  }));
+  const allUsers = mockUsers.map(u => {
+    const userRel = relationships[u.id];
+    return {
+      ...u,
+      followers: userRel?.followers?.length > 0 ? userRel.followers : (u.followers || []),
+      following: userRel?.following?.length > 0 ? userRel.following : (u.following || []),
+    };
+  });
 
   const banUser = (userId: string) => {
     if (!bannedUsers.includes(userId)) {
