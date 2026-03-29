@@ -16,6 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginGoogle: () => Promise<{ success: boolean; error?: string }>;
   signup: (userData: Partial<User> & { password: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
@@ -119,6 +120,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(foundUser);
     storage.set('rategallery_user', foundUser);
+    return { success: true };
+  };
+
+  const loginGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    // This will be implemented with Supabase Google OAuth
+    // For now, log in as a demo user
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const demoUser = mockUsers[0];
+    setUser(demoUser);
+    storage.set('rategallery_user', demoUser);
     return { success: true };
   };
 
@@ -299,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         login,
+        loginGoogle,
         signup,
         logout,
         updateUser,
