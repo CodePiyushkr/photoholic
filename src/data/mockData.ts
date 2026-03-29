@@ -1,5 +1,11 @@
 import { User, ImagePost, UserLocation } from '../types';
 
+// Seeded random function for consistent data generation
+const seededRandom = (seed: number): number => {
+  const x = Math.sin(seed++) * 10000;
+  return x - Math.floor(x);
+};
+
 // Sample locations
 const locations: UserLocation[] = [
   { country: 'United States', state: 'California', city: 'Los Angeles' },
@@ -96,7 +102,7 @@ const initialUsers: User[] = [
     location: locations[0],
     isPrivate: false,
     isAdmin: true,
-    createdAt: '2024-01-01T00:00:00Z',
+    createdAt: '2023-01-15T00:00:00Z',
     followers: [],
     following: [],
     totalImages: 0,
@@ -113,21 +119,29 @@ const initialUsers: User[] = [
       'Harper Jackson', 'Daniel Harris', 'Evelyn Clark', 'Michael Lewis'
     ][i];
     const username = name.toLowerCase().replace(' ', '_');
+    const seed = i + 1000;
+    
+    // Fixed phone numbers based on seed
+    const phoneNumber = `+1${(seed * 123456789) % 9000000000 + 1000000000}`.slice(0, 12);
+    
+    // Fixed creation dates (consistent, not random)
+    const accountAge = i % 12; // 0-11 months old
+    const createdDate = new Date(2024, 3 - accountAge, 15 + (i % 10));
     
     return {
       id: `user-${i + 1}`,
       username,
       email: `${username}@email.com`,
-      phone: `+1${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+      phone: phoneNumber,
       name,
       bio: `Photography enthusiast | ${locations[i % locations.length].city}`,
       avatar: generateAvatar(name),
       location: locations[i % locations.length],
       isPrivate: i % 5 === 0,
       isAdmin: false,
-      createdAt: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString(),
-      followers: Array.from({ length: Math.floor(Math.random() * 50) }, (_, j) => `user-${j + 1}`),
-      following: Array.from({ length: Math.floor(Math.random() * 30) }, (_, j) => `user-${j + 1}`),
+      createdAt: createdDate.toISOString(),
+      followers: Array.from({ length: Math.floor(seededRandom(seed * 2) * 50) }, (_, j) => `user-${(j + 1) % 20 === 0 ? 20 : (j + 1) % 20}`),
+      following: Array.from({ length: Math.floor(seededRandom(seed * 3) * 30) }, (_, j) => `user-${(j + 1) % 20 === 0 ? 20 : (j + 1) % 20}`),
       totalImages: 0,
       averageRating: 0,
       score: 0,
@@ -167,11 +181,15 @@ export const mockImages: ImagePost[] = sampleImages.map((imageUrl, i) => {
   }
   
   const user = initialUsers.find(u => u.id === assignedUserId) || initialUsers[1];
-  const ratingsCount = Math.floor(Math.random() * 50) + 5;
+  const seed = i * 777;
+  
+  // Fixed ratings count per image (consistent)
+  const ratingsCount = Math.floor(seededRandom(seed) * 50) + 5;
+  
   const ratings = Array.from({ length: ratingsCount }, (_, j) => ({
-    userId: `user-${j + 1}`,
-    rating: Math.floor(Math.random() * 5) + 6,
-    createdAt: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString(),
+    userId: `user-${((j + seed) % 20) + 1}`,
+    rating: Math.floor(seededRandom(seed + j) * 5) + 6,
+    createdAt: new Date(2024, Math.floor(seededRandom(seed + j * 2) * 12), Math.floor(seededRandom(seed + j * 3) * 28) + 1).toISOString(),
   }));
   const averageRating = Math.round((ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length) * 10) / 10;
   const starRating = averageRating / 2;
