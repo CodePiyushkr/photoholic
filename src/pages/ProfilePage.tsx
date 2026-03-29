@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapPin, Calendar, Lock, Settings, Grid, Users } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -8,7 +8,6 @@ import { StarRating } from '../components/ui/StarRating';
 import { ImageGrid } from '../components/features/ImageGrid';
 import { useAuth, useImages } from '../context/AppContext';
 import { formatRelativeTime, formatNumber, getUserRank, getRankBadgeText, calculateScore } from '../utils/helpers';
-import { User } from '../types';
 
 export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
