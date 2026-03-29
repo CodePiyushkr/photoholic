@@ -18,7 +18,6 @@ import { Avatar } from '../components/ui/Avatar';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { useAuth, useImages } from '../context/AppContext';
-import { mockUsers } from '../data/mockData';
 import { formatRelativeTime } from '../utils/helpers';
 import { User, ImagePost } from '../types';
 
@@ -26,7 +25,7 @@ type AdminTab = 'overview' | 'users' | 'flagged' | 'reports';
 
 export function AdminPage() {
   const navigate = useNavigate();
-  const { user, banUser, warnUser, bannedUsers } = useAuth();
+  const { user, banUser, warnUser, bannedUsers, allUsers: contextUsers } = useAuth();
   const { images, approveImage, deleteImage, clearReports } = useImages();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [selectedImage, setSelectedImage] = useState<ImagePost | null>(null);
@@ -44,7 +43,7 @@ export function AdminPage() {
 
   const flaggedImages = images.filter(img => img.isFlagged);
   const reportedImages = images.filter(img => img.reports.length > 0);
-  const allUsers = mockUsers.filter(u => !u.isAdmin);
+  const allUsers = contextUsers.filter(u => !u.isAdmin);
 
   // Show success/error message for 3 seconds
   const showMessage = (type: 'success' | 'error', text: string) => {

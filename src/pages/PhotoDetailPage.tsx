@@ -16,14 +16,13 @@ import { StarRating, RatingSlider } from '../components/ui/StarRating';
 import { Modal } from '../components/ui/Modal';
 import { TextArea } from '../components/ui/Input';
 import { useImages, useAuth } from '../context/AppContext';
-import { mockUsers } from '../data/mockData';
 import { formatRelativeTime, getShareUrl, copyToClipboard } from '../utils/helpers';
 
 export function PhotoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { images, rateImage, reportImage } = useImages();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, allUsers } = useAuth();
   
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -35,7 +34,7 @@ export function PhotoDetailPage() {
   const [reportSubmitted, setReportSubmitted] = useState(false);
 
   const image = images.find(img => img.id === id);
-  const imageOwner = mockUsers.find(u => u.id === image?.userId);
+  const imageOwner = allUsers.find(u => u.id === image?.userId);
 
   useEffect(() => {
     if (image && user) {

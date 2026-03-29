@@ -4,10 +4,13 @@ import { Trophy, Medal, Filter, MapPin, ChevronDown } from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar';
 import { StarRating } from '../components/ui/StarRating';
 import { Badge } from '../components/ui/Badge';
-import { mockUsers, getUniqueLocations } from '../data/mockData';
+import { getUniqueLocations } from '../data/mockData';
+import { useImages, useAuth } from '../context/AppContext';
 import { calculateScore } from '../utils/helpers';
 
 export function LeaderboardPage() {
+  const { images } = useImages();
+  const { allUsers } = useAuth();
   const [filters, setFilters] = useState({
     country: '',
     state: '',
@@ -19,7 +22,22 @@ export function LeaderboardPage() {
   const { countries, states, cities } = getUniqueLocations();
 
   const leaderboard = useMemo(() => {
-    let users = mockUsers.filter(u => !u.isAdmin && u.totalImages > 0);
+    // Calculate real stats from actual images in context
+    const usersWithRealStats = allUsers.map(user => {
+      const userImages = images.filter(img => img.userId === user.id && img.isApproved);
+      const totalImages = userImages.length;
+      const averageRating = totalImages > 0
+        ? Math.round((userImages.reduce((sum, img) => sum + img.averageRating, 0) / totalImages) * 10) / 10
+        : 0;
+      return {
+        ...user,
+        totalImages,
+        averageRating,
+        score: calculateScore(totalImages, averageRating),
+      };
+    });
+
+    let users = usersWithRealStats.filter(u => !u.isAdmin && u.totalImages > 0);
 
     // Apply location filters
     if (filters.country) {
@@ -32,15 +50,11 @@ export function LeaderboardPage() {
       users = users.filter(u => u.location.city === filters.city);
     }
 
-    // Calculate score and sort
+    // Sort by score
     return users
-      .map(user => ({
-        ...user,
-        score: calculateScore(user.totalImages, user.averageRating),
-      }))
       .sort((a, b) => b.score - a.score)
       .map((user, index) => ({ ...user, rank: index + 1 }));
-  }, [filters]);
+  }, [filters, images, allUsers]);
 
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Trophy size={24} className="text-yellow-500" />;
@@ -58,12 +72,12 @@ export function LeaderboardPage() {
 
   // Filter states based on selected country
   const filteredStates = filters.country
-    ? [...new Set(mockUsers.filter(u => u.location.country === filters.country).map(u => u.location.state))]
+    ? [...new Set(allUsers.filter(u => u.location.country === filters.country).map(u => u.location.state))]
     : states;
 
   // Filter cities based on selected state
   const filteredCities = filters.state
-    ? [...new Set(mockUsers.filter(u => u.location.state === filters.state).map(u => u.location.city))]
+    ? [...new Set(allUsers.filter(u => u.location.state === filters.state).map(u => u.location.city))]
     : cities;
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapPin, Calendar, Lock, Settings, Grid, Users } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -7,23 +7,36 @@ import { Badge } from '../components/ui/Badge';
 import { StarRating } from '../components/ui/StarRating';
 import { ImageGrid } from '../components/features/ImageGrid';
 import { useAuth, useImages } from '../context/AppContext';
-import { mockUsers } from '../data/mockData';
-import { formatRelativeTime, formatNumber, getUserRank, getRankBadgeText } from '../utils/helpers';
+import { formatRelativeTime, formatNumber, getUserRank, getRankBadgeText, calculateScore } from '../utils/helpers';
 import { User } from '../types';
 
 export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
-  const { user: currentUser, isAuthenticated, followUser, unfollowUser, isFollowing } = useAuth();
-  const { getUserImages } = useImages();
-  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const { user: currentUser, isAuthenticated, followUser, unfollowUser, isFollowing, getFollowers, getFollowing, allUsers } = useAuth();
+  const { getUserImages, images } = useImages();
   const [activeTab, setActiveTab] = useState<'photos' | 'followers' | 'following'>('photos');
 
-  useEffect(() => {
-    const foundUser = mockUsers.find(u => u.username === username);
-    if (foundUser) {
-      setProfileUser(foundUser);
-    }
-  }, [username]);
+  // Find profile user from allUsers (which has real-time relationship data)
+  const profileUser = useMemo(() => {
+    return allUsers.find(u => u.username === username) || null;
+  }, [allUsers, username]);
+
+  // Calculate real stats for all users from actual images
+  const usersWithRealStats = useMemo(() => {
+    return allUsers.map(user => {
+      const userImgs = images.filter(img => img.userId === user.id && img.isApproved);
+      const totalImages = userImgs.length;
+      const averageRating = totalImages > 0
+        ? Math.round((userImgs.reduce((sum, img) => sum + img.averageRating, 0) / totalImages) * 10) / 10
+        : 0;
+      return {
+        ...user,
+        totalImages,
+        averageRating,
+        score: calculateScore(totalImages, averageRating),
+      };
+    });
+  }, [images, allUsers]);
 
   if (!profileUser) {
     return (
@@ -40,6 +53,12 @@ export function ProfilePage() {
   const userImages = getUserImages(profileUser.id);
   const isUserFollowing = isFollowing(profileUser.id);
 
+  // Calculate real average rating from user's approved images
+  const approvedImages = userImages.filter(img => img.isApproved);
+  const realAverageRating = approvedImages.length > 0
+    ? Math.round((approvedImages.reduce((sum, img) => sum + img.averageRating, 0) / approvedImages.length) * 10) / 10
+    : 0;
+
   // Check if current user can view content (public profile or following)
   const canViewContent = !profileUser.isPrivate || isOwnProfile || isUserFollowing;
 
@@ -51,9 +70,11 @@ export function ProfilePage() {
     }
   };
 
-  // Get followers and following lists
-  const followers = mockUsers.filter(u => profileUser.followers.includes(u.id));
-  const following = mockUsers.filter(u => profileUser.following.includes(u.id));
+  // Get followers and following lists with real-time data
+  const followerIds = getFollowers(profileUser.id);
+  const followingIds = getFollowing(profileUser.id);
+  const followers = allUsers.filter(u => followerIds.includes(u.id));
+  const following = allUsers.filter(u => followingIds.includes(u.id));
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -69,7 +90,7 @@ export function ProfilePage() {
             <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
               {/* Leaderboard Rank Badge */}
               {(() => {
-                const rank = getUserRank(profileUser.id, mockUsers);
+                const rank = getUserRank(profileUser.id, usersWithRealStats);
                 const badgeText = getRankBadgeText(rank);
                 if (badgeText) {
                   const badgeStyle = rank === 1 
@@ -130,24 +151,24 @@ export function ProfilePage() {
               onClick={() => canViewContent && setActiveTab('followers')}
               className="text-center hover:opacity-70"
             >
-              <span className="text-xl font-bold text-dark">{formatNumber(profileUser.followers.length)}</span>
+              <span className="text-xl font-bold text-dark">{formatNumber(followerIds.length)}</span>
               <span className="block text-sm text-dark-muted">Followers</span>
             </button>
             <button 
               onClick={() => canViewContent && setActiveTab('following')}
               className="text-center hover:opacity-70"
             >
-              <span className="text-xl font-bold text-dark">{formatNumber(profileUser.following.length)}</span>
+              <span className="text-xl font-bold text-dark">{formatNumber(followingIds.length)}</span>
               <span className="block text-sm text-dark-muted">Following</span>
             </button>
           </div>
 
           {/* Rating Stats */}
-          {canViewContent && userImages.length > 0 && (
+          {canViewContent && approvedImages.length > 0 && (
             <div className="flex items-center justify-center md:justify-start gap-2 mb-4">
               <span className="text-dark-muted">Avg Rating:</span>
-              <StarRating rating={profileUser.averageRating / 2} size="sm" showValue />
-              <span className="text-dark-muted">({profileUser.averageRating}/10)</span>
+              <StarRating rating={realAverageRating / 2} size="sm" showValue />
+              <span className="text-dark-muted">({realAverageRating}/10)</span>
             </div>
           )}
 

@@ -5,10 +5,11 @@ import { ImageGrid } from '../components/features/ImageGrid';
 import { useAuth, useImages } from '../context/AppContext';
 
 export function LandingPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { getPublicImages } = useImages();
   
-  const images = getPublicImages();
+  // Pass current user to filter: public account images + followed private account images
+  const images = getPublicImages(user);
 
   return (
     <div className="min-h-screen bg-white">

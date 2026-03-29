@@ -3,6 +3,14 @@ import { User, ImagePost, Notification } from '../types';
 import { mockUsers, mockImages } from '../data/mockData';
 import { storage, calculateScore } from '../utils/helpers';
 
+// Type for storing user relationships
+interface UserRelationships {
+  [userId: string]: {
+    followers: string[];
+    following: string[];
+  };
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -14,17 +22,36 @@ interface AuthContextType {
   followUser: (userId: string) => void;
   unfollowUser: (userId: string) => void;
   isFollowing: (userId: string) => boolean;
+  getFollowers: (userId: string) => string[];
+  getFollowing: (userId: string) => string[];
   banUser: (userId: string) => void;
   warnUser: (userId: string) => void;
   sendNotification: (userId: string, notification: Omit<Notification, 'id' | 'createdAt'>) => void;
   bannedUsers: string[];
+  allUsers: User[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Initialize relationships from mockUsers
+const initializeRelationships = (): UserRelationships => {
+  const saved = storage.get<UserRelationships>('rategallery_relationships', null);
+  if (saved) return saved;
+  
+  const relationships: UserRelationships = {};
+  mockUsers.forEach(user => {
+    relationships[user.id] = {
+      followers: [...user.followers],
+      following: [...user.following],
+    };
+  });
+  return relationships;
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [relationships, setRelationships] = useState<UserRelationships>(initializeRelationships);
   const [bannedUsers, setBannedUsers] = useState<string[]>(() => {
     return storage.get<string[]>('rategallery_banned', []);
   });
@@ -37,6 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(false);
   }, []);
+
+  // Save relationships to localStorage whenever they change
+  useEffect(() => {
+    storage.set('rategallery_relationships', relationships);
+  }, [relationships]);
 
   useEffect(() => {
     storage.set('rategallery_banned', bannedUsers);
@@ -125,31 +157,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const followUser = (userId: string) => {
-    if (user && !user.following.includes(userId)) {
-      const updatedUser = {
-        ...user,
-        following: [...user.following, userId],
+  const followUser = (targetUserId: string) => {
+    if (!user || user.id === targetUserId) return;
+    
+    // Update relationships state (both current user's following AND target user's followers)
+    setRelationships(prev => {
+      const currentUserRel = prev[user.id] || { followers: [], following: [] };
+      const targetUserRel = prev[targetUserId] || { followers: [], following: [] };
+      
+      // Check if already following
+      if (currentUserRel.following.includes(targetUserId)) return prev;
+      
+      return {
+        ...prev,
+        [user.id]: {
+          ...currentUserRel,
+          following: [...currentUserRel.following, targetUserId],
+        },
+        [targetUserId]: {
+          ...targetUserRel,
+          followers: [...targetUserRel.followers, user.id],
+        },
       };
-      setUser(updatedUser);
-      storage.set('rategallery_user', updatedUser);
-    }
+    });
+
+    // Also update the current user state for immediate UI feedback
+    const updatedUser = {
+      ...user,
+      following: [...user.following, targetUserId],
+    };
+    setUser(updatedUser);
+    storage.set('rategallery_user', updatedUser);
   };
 
-  const unfollowUser = (userId: string) => {
-    if (user) {
-      const updatedUser = {
-        ...user,
-        following: user.following.filter(id => id !== userId),
+  const unfollowUser = (targetUserId: string) => {
+    if (!user) return;
+    
+    // Update relationships state (both sides)
+    setRelationships(prev => {
+      const currentUserRel = prev[user.id] || { followers: [], following: [] };
+      const targetUserRel = prev[targetUserId] || { followers: [], following: [] };
+      
+      return {
+        ...prev,
+        [user.id]: {
+          ...currentUserRel,
+          following: currentUserRel.following.filter(id => id !== targetUserId),
+        },
+        [targetUserId]: {
+          ...targetUserRel,
+          followers: targetUserRel.followers.filter(id => id !== user.id),
+        },
       };
-      setUser(updatedUser);
-      storage.set('rategallery_user', updatedUser);
-    }
+    });
+
+    // Update current user state
+    const updatedUser = {
+      ...user,
+      following: user.following.filter(id => id !== targetUserId),
+    };
+    setUser(updatedUser);
+    storage.set('rategallery_user', updatedUser);
   };
 
   const isFollowing = (userId: string): boolean => {
-    return user?.following.includes(userId) || false;
+    if (!user) return false;
+    const userRel = relationships[user.id];
+    return userRel?.following.includes(userId) || false;
   };
+
+  const getFollowers = (userId: string): string[] => {
+    return relationships[userId]?.followers || [];
+  };
+
+  const getFollowing = (userId: string): string[] => {
+    return relationships[userId]?.following || [];
+  };
+
+  // Get all users with real-time relationship data
+  const allUsers = mockUsers.map(u => ({
+    ...u,
+    followers: relationships[u.id]?.followers || u.followers,
+    following: relationships[u.id]?.following || u.following,
+  }));
 
   const banUser = (userId: string) => {
     if (!bannedUsers.includes(userId)) {
@@ -192,10 +282,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         followUser,
         unfollowUser,
         isFollowing,
+        getFollowers,
+        getFollowing,
         banUser,
         warnUser,
         sendNotification,
         bannedUsers,
+        allUsers,
       }}
     >
       {children}
@@ -222,7 +315,7 @@ interface ImageContextType {
   flagImage: (imageId: string, reason: string) => void;
   clearReports: (imageId: string) => void;
   getUserImages: (userId: string) => ImagePost[];
-  getPublicImages: () => ImagePost[];
+  getPublicImages: (currentUser?: User | null) => ImagePost[];
 }
 
 const ImageContext = createContext<ImageContextType | undefined>(undefined);
@@ -324,8 +417,29 @@ export function ImageProvider({ children }: { children: ReactNode }) {
     return images.filter(img => img.userId === userId);
   };
 
-  const getPublicImages = (): ImagePost[] => {
-    return images.filter(img => img.isApproved);
+  const getPublicImages = (currentUser?: User | null): ImagePost[] => {
+    return images.filter(img => {
+      // Must be approved
+      if (!img.isApproved) return false;
+      
+      // Find the image owner
+      const imageOwner = mockUsers.find(u => u.id === img.userId);
+      if (!imageOwner) return false;
+      
+      // If owner has public account, show the image
+      if (!imageOwner.isPrivate) return true;
+      
+      // If owner has private account:
+      // - Show if it's the current user's own image
+      // - Show if current user follows the owner
+      if (currentUser) {
+        if (currentUser.id === img.userId) return true;
+        if (currentUser.following.includes(img.userId)) return true;
+      }
+      
+      // Private account and not following - hide image
+      return false;
+    });
   };
 
   return (

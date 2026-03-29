@@ -4,14 +4,14 @@ import { Search as SearchIcon, User, Image } from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar';
 import { ImageGrid } from '../components/features/ImageGrid';
 import { Badge } from '../components/ui/Badge';
-import { mockUsers } from '../data/mockData';
-import { useImages } from '../context/AppContext';
+import { useImages, useAuth } from '../context/AppContext';
 
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
   const [activeTab, setActiveTab] = useState<'all' | 'photos' | 'users'>('all');
   const { getPublicImages } = useImages();
+  const { user, allUsers } = useAuth();
 
   const searchResults = useMemo(() => {
     if (!query.trim()) {
@@ -20,7 +20,7 @@ export function SearchPage() {
 
     const q = query.toLowerCase();
     
-    const users = mockUsers.filter(
+    const users = allUsers.filter(
       u => !u.isAdmin && (
         u.name.toLowerCase().includes(q) ||
         u.username.toLowerCase().includes(q) ||
@@ -29,7 +29,8 @@ export function SearchPage() {
       )
     );
 
-    const images = getPublicImages().filter(
+    // Pass current user to filter private account images properly
+    const images = getPublicImages(user).filter(
       img =>
         img.title.toLowerCase().includes(q) ||
         img.username.toLowerCase().includes(q) ||
@@ -37,7 +38,7 @@ export function SearchPage() {
     );
 
     return { users, images };
-  }, [query, getPublicImages]);
+  }, [query, getPublicImages, user, allUsers]);
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
