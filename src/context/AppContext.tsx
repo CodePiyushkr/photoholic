@@ -16,7 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  loginGoogle: () => Promise<{ success: boolean; error?: string }>;
+  loginGoogle: (email?: string) => Promise<{ success: boolean; error?: string; existingUser?: boolean; redirectUrl?: string }>;
   signup: (userData: Partial<User> & { password: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
@@ -123,11 +123,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: true };
   };
 
-  const loginGoogle = async (): Promise<{ success: boolean; error?: string }> => {
-    // This will be implemented with Supabase Google OAuth
-    // For now, log in as a demo user
+  const loginGoogle = async (email?: string): Promise<{ success: boolean; error?: string; existingUser?: boolean; redirectUrl?: string }> => {
+    // Simulate Google OAuth API call
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
+    // If email provided (from Signup), check if user exists
+    if (email) {
+      const existingUser = mockUsers.find(u => u.email === email);
+      
+      if (existingUser) {
+        // User exists - log them in directly
+        setUser(existingUser);
+        storage.set('rategallery_user', existingUser);
+        return { success: true, existingUser: true };
+      } else {
+        // New user - redirect to complete profile
+        return { 
+          success: true, 
+          existingUser: false, 
+          redirectUrl: `/complete-profile?email=${encodeURIComponent(email)}` 
+        };
+      }
+    }
+
+    // For login page - just check demo flow
     const demoUser = mockUsers[0];
     setUser(demoUser);
     storage.set('rategallery_user', demoUser);

@@ -77,10 +77,20 @@ export default function Signup() {
     setGoogleLoading(true)
 
     try {
-      const result = await loginGoogle()
+      // In demo mode, simulate getting Google email from user
+      // In real app, this would come from Google OAuth callback
+      const email = formData.email || `user${Date.now()}@gmail.com`
+      
+      const result = await loginGoogle(email)
 
       if (result.success) {
-        navigate('/')
+        if (result.redirectUrl) {
+          // New user - redirect to complete profile
+          navigate(result.redirectUrl)
+        } else if (result.existingUser) {
+          // Existing user - direct to home
+          navigate('/')
+        }
       } else {
         setError(result.error || 'Google signup failed')
         setGoogleLoading(false)
