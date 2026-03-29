@@ -35,7 +35,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Initialize relationships from mockUsers
 const initializeRelationships = (): UserRelationships => {
-  const saved = storage.get<UserRelationships>('rategallery_relationships', null);
+  const saved = storage.get<UserRelationships | null>('rategallery_relationships', null);
   if (saved) return saved;
   
   const relationships: UserRelationships = {};
